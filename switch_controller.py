@@ -1,43 +1,55 @@
 import pygame
 import pynput
+from typing import Optional
+from abc import ABC
 
-def presser(mapping, type):
+# def presser(mapping, type):
     
-    def keyboard_presser(mapping):
-        keyboard.press(mapping)
+#     def keyboard_presser(mapping):
+#         keyboard.press(mapping)
     
-    if type == 'keyboard':
-        return keyboard_presser(mapping)
+#     if type == 'keyboard':
+#         return keyboard_presser(mapping)
     
     
+keyboard = pynput.keyboard.Controller()
 
-class My_button_mapper:
-    def __init__(self, mapping):
+class My_button_mapper(ABC):
+    def __init__(self, mapping, key_type: Optional[chr] = 'i'):
         self._state = False
         self._map = mapping
-        self._type = 'c'
-        self._keypresser = presser(self._map, 'keyboard')
+        self._type = key_type
+        self._keypresser = pynput.keyboard.Controller() 
     
     @property
-    def state(self):
-        return self._state
-        
-    @state.setter
-    def state(self, state):
-        self._state = state     
+    def mapping(self):
+        return self._map
     
     def press(self):
         if self._type == 'c':
-            keyboard.press(self._map)
-            keyboard.release(self._map)
+            self._keypresser.press(self._map)
+            self._keypresser.release(self._map)
         elif self._type == 'i':
-            if not self.state:
-                keyboard.press(self._map)
-                self.state = True
-            else:
-                keyboard.release(self._map)
+            if not self._state:
+                self._keypresser.press(self._map)
+                self._state = True
     
+    def release(self):
+        if self._state and self._type == 'i':
+            self._keypresser.release(self._map)
+            self._state = False
 
+class My_button_mapper_key(My_button_mapper):
+    def __init__(self, mapping, key_type: Optional[chr] = 'i'):
+        super().__init__(mapping, key_type)
+        self._keypresser = pynput.keyboard.Controller() 
+    
+class My_button_mapper_mouse(My_button_mapper):
+    def __init__(self, mapping, key_type: Optional[chr] = 'i'):
+        super().__init__(mapping, key_type)
+        self._keypresser = pynput.mouse.Controller()
+            
+            
 pygame.init()
 
 clock = pygame.time.Clock()
@@ -56,26 +68,33 @@ else:
 pygame.event.pump()  # Updates pygame event queue
 
 mouse = pynput.mouse.Controller()
-mouse_right = [False, False]
-mouse_left = [False, False]
 
 stickdrift = 0.3
+def get_axis(axis):
+    axis = controller.get_axis(axis)  # Right joystick X-axis
+    if abs(axis) < stickdrift:
+        axis = 0.0
+    return axis
 
-keyboard = pynput.keyboard.Controller()
+# Scale movement speed
+mouse_speed = 15  # Adjust for sensitivity
 
-button_to_key = {
-    0: 'd',
-    1: 'x',
-    2: 'w',
-    3: 'a',
-    6: 's',
-    4: 'ctrl c',
-    9: 'mouse right',
-    10: 'mouse left',
-    14: pynput.keyboard.Key.right,
-    11: pynput.keyboard.Key.up,
-    13: pynput.keyboard.Key.left,
-    12: pynput.keyboard.Key.down,
+
+
+
+button_to_mapper = {
+    0: My_button_mapper_key('d', 'c'),
+    1: My_button_mapper_key('x', 'c'),
+    2: My_button_mapper_key('w', 'c'),
+    3: My_button_mapper_key('a', 'c'),
+    5: My_button_mapper_key(pynput.keyboard.Key.esc),
+    6: My_button_mapper_key('s'),
+    9: My_button_mapper_mouse(pynput.mouse.Button.right),
+    10: My_button_mapper_mouse(pynput.mouse.Button.left),
+    11: My_button_mapper_key(pynput.keyboard.Key.up),
+    12: My_button_mapper_key(pynput.keyboard.Key.down),
+    13: My_button_mapper_key(pynput.keyboard.Key.left),
+    14: My_button_mapper_key(pynput.keyboard.Key.right),
 }
 
 # Main loop to read inputs
@@ -83,16 +102,14 @@ try:
     while True:
         pygame.event.pump()  # Updates pygame event queue
         
-        # Read joystick axis for mouse movement (adjust axis based on your controller's setup)
-        x_axis = controller.get_axis(2)  # Right joystick X-axis
-        if abs(x_axis) < stickdrift:
-            x_axis = 0.0
-        y_axis = controller.get_axis(3)  # Right joystick Y-axis
-        if abs(y_axis) < stickdrift:
-            y_axis = 0.0
+        if controller.get_button(4):
+            raise KeyboardInterrupt
         
-        # Scale movement speed
-        mouse_speed = 15  # Adjust for sensitivity
+        # Read joystick axis for mouse movement (adjust axis based on your controller's setup)
+        x_axis = get_axis(2)  # Right joystick X-axis
+        y_axis = get_axis(3)  # Right joystick Y-axis
+        
+        
         
         # Update mouse position based on joystick input
         new_x = int(x_axis * mouse_speed)
@@ -106,51 +123,14 @@ try:
             if controller.get_button(button):
                 print(f"Button {button} is pressed.")
         
-        # Loop through each button in the mapping
-        for button, mapp in button_to_key.items():
+        for button, map in button_to_mapper.items():
             if controller.get_button(button):
-                # print(key)
-                if mapp == 'ctrl c':
-                    with keyboard.pressed(pynput.keyboard.Key.ctrl):
-                        keyboard.press('c')
-                        keyboard.release('c')
-                        raise KeyboardInterrupt
-                elif type(mapp) == str:
-                    if mapp[0:5] == 'mouse':
-                        if mapp == 'mouse right':
-                            if mouse_right == [False, False]:
-                                # print('click')
-                                mouse.press(pynput.mouse.Button.right)
-                            mouse_right = [True, True]
-                        else:
-                            if mouse_left == [False, False]:
-                                # print('click2')
-                                mouse.press(pynput.mouse.Button.left)
-                            mouse_left = [True, True]
-                    else:
-                        # Press and release the mapped keyboard key
-                        keyboard.press(mapp)
-                        keyboard.release(mapp)
-                else:
-                    # Press and release the mapped keyboard key
-                    keyboard.press(mapp)
-                    keyboard.release(mapp)
-                    
-        if mouse_right == [False, True]:
-            mouse.release(pynput.mouse.Button.right)
-            mouse_right[1] = False
-            # print(mouse_right)
-        mouse_right[0] = False
-        
-        if mouse_left == [False, True]:
-            mouse.release(pynput.mouse.Button.left)
-            mouse_left[1] = False
-            # print(mouse_left)
-        mouse_left[0] = False
-
+                map.press()
+            else:
+                map.release()
                 
         # Cap the frame rate to 60 FPS
-        clock.tick(60)  # Limits the loop to 60 frames per second
+        clock.tick(10)  # Limits the loop to 60 frames per second
         
 except KeyboardInterrupt:
     print("Exited")
