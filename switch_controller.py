@@ -70,26 +70,48 @@ class Mapper:
         self._mouse = pynput.mouse.Controller()
         self._stickdrift = stickdrift
         self._mouse_speed = mouse_speed
-        self._button_to_mapper: dict[int, My_button_mapper] = self._button_to_mapper_factory(mapping)
+        
+        self._button_to_mapper: dict[int, My_button_mapper]
+        self._axis_to_mapper: dict[int, list[My_button_mapper]]
+        self._button_to_mapper, self._axis_to_mapper = self._to_mapper_factory(mapping)
+        
         self._debugg = debugg
         self._right_trigger = My_button_mapper_key(' ')
         self._left_trigger = My_button_mapper_key('c')
 
-    def _button_to_mapper_factory(self, mapping: str):
-        mapper: dict[dict[int, My_button_mapper]] = {
+    def _to_mapper_factory(self, mapping: str):
+        mapper_buttons: dict[dict[int, My_button_mapper]] = {
             'ROS2': {
+                # Button A
                 0: My_button_mapper_key('d', 'continous'),
+                # Button B
                 1: My_button_mapper_key('x', 'continous'),
+                # Button X
                 2: My_button_mapper_key('w', 'continous'),
+                # Button Y
                 3: My_button_mapper_key('a', 'continous'),
+                # Button Home
                 5: My_button_mapper_key(pynput.keyboard.Key.esc),
+                # Button +
                 6: My_button_mapper_key('s'),
+                # Joystick left click
+                7: My_button_mapper_key('s'),
+                # # Joystick right click
+                # 8: None,
+                # Trigger button left
                 9: My_button_mapper_mouse(pynput.mouse.Button.right),
+                # Trigger button right
                 10: My_button_mapper_mouse(pynput.mouse.Button.left),
+                # Button up
                 11: My_button_mapper_key(pynput.keyboard.Key.up),
+                # Button down
                 12: My_button_mapper_key(pynput.keyboard.Key.down),
+                # Button left
                 13: My_button_mapper_key(pynput.keyboard.Key.left),
+                # Button right
                 14: My_button_mapper_key(pynput.keyboard.Key.right),
+                # # Capture button
+                # 15: None,
                 },
             'Satisfactory': {
                 0: My_button_mapper_key('q'),
@@ -106,11 +128,41 @@ class Mapper:
                 13: My_button_mapper_key('a'),
                 14: My_button_mapper_key('d'),
                 },
+            'Debugg': {
+                },
         }
         
-        button_to_mapper = mapper[mapping]
+        mapper_axis: dict[dict[int, My_button_mapper]] = {
+            'ROS2': {
+                # Joystick left X
+                0: [My_button_mapper_key('d', 'continous'), My_button_mapper_key('a', 'continous')],
+                # Joystick left Y
+                1: [My_button_mapper_key('x', 'continous'), My_button_mapper_key('w', 'continous')],
+                # # Joystick right X
+                # 2: None,
+                # # Joystick right Y,
+                # 3: None,
+                # # Trigger left
+                # 4: None,
+                # # Trigger right
+                # 5: None,
+            },
+            'Satisfactory': {
+                # Joystick left X
+                0: [My_button_mapper_key('d'), My_button_mapper_key('a')],
+                # Joystick left Y
+                1: [My_button_mapper_key('s'), My_button_mapper_key('w')],
+                4: [My_button_mapper_key('c'),],
+                5: [My_button_mapper_key(' '),],
+            },
+            'Debugg': {
+            },
+        }
         
-        return button_to_mapper
+        button_to_mapper = mapper_buttons[mapping]
+        axis_to_mapper = mapper_axis[mapping]
+        
+        return (button_to_mapper, axis_to_mapper)
     
     def connect_controller(self):
         # Ensure a joystick is connected
@@ -149,18 +201,32 @@ class Mapper:
         # Call SendInput with ctypes
         ctypes.windll.user32.SendInput(1, ctypes.pointer(input_structure), ctypes.sizeof(input_structure))
     
-    def _button_handler(self):
+    def _mapping_handler(self):
         # Check each button on the controller
         if self._debugg:
             for button in range(self._controller.get_numbuttons()):
                 if self._controller.get_button(button):
                     print(f"Button {button} is pressed.")
+            # for axis in range(self._controller.get_numaxes()):
+            #     if self._stickdrift < self._controller.get_axis(axis) or self._controller.get_axis(axis) < -self._stickdrift:
+            #         print(f'Axis {axis} is aktivated')
             
         for button, map in self._button_to_mapper.items():
             if self._controller.get_button(button):
                 map.press()
             else:
                 map.release()
+        
+        for axis, map in self._axis_to_mapper.items():
+            axis_value = self._controller.get_axis(axis)
+            if axis_value > 0.5:
+                map[0].press()
+            else:
+                map[0].release()
+            if axis_value < -0.5:
+                map[1].press()
+            else:
+                map[1].release()
                 
     def spin(self, tick):
         while True:
@@ -175,26 +241,16 @@ class Mapper:
             
             self._move_mouse()
             
-            self._button_handler()
-            
-            if self._controller.get_axis(5) > 0:
-                self._right_trigger.press()
-            else:
-                self._right_trigger.release()
-                
-            if self._controller.get_axis(4) > 0:
-                self._left_trigger.press()
-            else:
-                self._left_trigger.release()
+            self._mapping_handler()
                                           
     def quit(self):
         pygame.quit()
         
         
 def main():  
-    tick = 60
+    tick = 10
     speed = 1000/tick      
-    mapper = Mapper(0.2, speed, 'ROS2')
+    mapper = Mapper(0.2, speed, 'ROS2', debugg=True)
     mapper.connect_controller()
     
     # Main loop to read inputs
