@@ -130,6 +130,38 @@ class Mapper:
                 },
             'Debugg': {
                 },
+            'Mouse': {
+                # Button A
+                0: My_button_mapper_key(pynput.keyboard.Key.esc),
+                # Button B
+                1: My_button_mapper_key(pynput.keyboard.Key.esc),
+                # Button X
+                2: My_button_mapper_key(pynput.keyboard.Key.esc),
+                # Button Y
+                3: My_button_mapper_key(pynput.keyboard.Key.esc),
+                # Button Home
+                5: My_button_mapper_key(pynput.keyboard.Key.esc),
+                # Button +
+                6: My_button_mapper_key(pynput.keyboard.Key.esc),
+                # Joystick left click
+                7: My_button_mapper_key(pynput.keyboard.Key.esc),
+                # Joystick right click
+                8: My_button_mapper_mouse(pynput.mouse.Button.middle),
+                # Trigger button left
+                9: My_button_mapper_mouse(pynput.mouse.Button.right),
+                # Trigger button right
+                10: My_button_mapper_mouse(pynput.mouse.Button.left),
+                # Button up
+                11: My_button_mapper_key(pynput.keyboard.Key.up),
+                # Button down
+                12: My_button_mapper_key(pynput.keyboard.Key.down),
+                # Button left
+                13: My_button_mapper_key(pynput.keyboard.Key.left),
+                # Button right
+                14: My_button_mapper_key(pynput.keyboard.Key.right),
+                # # Capture button
+                15: My_button_mapper_key(pynput.keyboard.Key.esc),
+                },
         }
         
         mapper_axis: dict[dict[int, My_button_mapper]] = {
@@ -156,6 +188,20 @@ class Mapper:
                 5: [My_button_mapper_key(' '),],
             },
             'Debugg': {
+            },
+            'Mouse': {
+                # Joystick left X
+                # 0: None,
+                # Joystick left Y
+                # 1: None,
+                # # Joystick right X
+                # 2: None,
+                # # Joystick right Y,
+                # 3: None,
+                # # Trigger left
+                # 4: None,
+                # # Trigger right
+                # 5: None,
             },
         }
         
@@ -207,9 +253,6 @@ class Mapper:
             for button in range(self._controller.get_numbuttons()):
                 if self._controller.get_button(button):
                     print(f"Button {button} is pressed.")
-            # for axis in range(self._controller.get_numaxes()):
-            #     if self._stickdrift < self._controller.get_axis(axis) or self._controller.get_axis(axis) < -self._stickdrift:
-            #         print(f'Axis {axis} is aktivated')
             
         for button, map in self._button_to_mapper.items():
             if self._controller.get_button(button):
@@ -248,13 +291,13 @@ class Mapper:
         
         
 def main():  
-    tick = 10
+    tick = 20
     speed = 1000/tick      
-    mapper = Mapper(0.2, speed, 'ROS2', debugg=True)
+    mapper = Mapper(0.2, speed, 'ROS2', debugg=False)
     mapper.connect_controller()
     
     # Main loop to read inputs
-    try:  
+    try:
         mapper.spin(tick)
     except KeyboardInterrupt:
         print("Exited")
